@@ -12,5 +12,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Basic command runner setup
 - Sample command implementation
 - Test infrastructure
-- Docs site template generation
+
 
