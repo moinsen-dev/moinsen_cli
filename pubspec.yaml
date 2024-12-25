@@ -1,6 +1,8 @@
 name: moinsen_cli
 description: Say moinsen to help you with your flutter projects
 version: 0.0.1
+homepage: https://github.com/moinsen/moinsen_cli
+repository: https://github.com/moinsen/moinsen_cli
 
 environment:
   sdk: ^3.5.0
@@ -22,3 +24,6 @@ dev_dependencies:
 
 executables:
   moinsen:
+    main: bin/moinsen.dart
+    sources:
+      - bin/moinsen.dart
