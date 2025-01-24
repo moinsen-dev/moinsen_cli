@@ -14,7 +14,8 @@ dependencies:
   path: ^1.9.0
   protobuf: ^3.1.0
   shared_preferences: ^2.4.0
-  sqflite: ^2.4.1
+  sqlite3: ^2.4.0
+  path_provider: ^2.1.2
   moinsen_cli:
     path: ..
   flutter_riverpod: ^2.6.1
@@ -32,3 +33,5 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  assets:
+    - assets/

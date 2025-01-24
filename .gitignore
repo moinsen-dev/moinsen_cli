@@ -13,3 +13,9 @@ coverage/
 
 # Android studio and IntelliJ
 .idea
+
+# Aider
+.aider.chat.history.md
+
+# Moinsen
+.moinsen-command-log.json

@@ -21,14 +21,22 @@ class CommandServiceImpl extends pbgrpc.CommandServiceBase {
   ///
   /// The [logger] parameter is optional and defaults to a new [Logger] instance
   /// if not provided.
-  CommandServiceImpl({this.secret, Logger? logger})
-      : _logger = logger ?? Logger();
+  ///
+  /// The [logFile] parameter is optional and can be used to log command execution.
+  CommandServiceImpl({
+    this.secret,
+    Logger? logger,
+    this.logFile,
+  }) : _logger = logger ?? Logger();
 
   /// Optional secret key for authentication.
   final String? secret;
 
   /// Logger instance for service-wide logging.
   final Logger _logger;
+
+  /// Optional log file for command logging
+  final File? logFile;
 
   /// The currently running process.
   ///
@@ -102,6 +110,20 @@ class CommandServiceImpl extends pbgrpc.CommandServiceBase {
         // Do nothing in quiet mode
         break;
     }
+  }
+
+  void _logToFile(Map<String, dynamic> data) {
+    if (logFile == null) return;
+
+    final logEntry = {
+      'timestamp': DateTime.now().toIso8601String(),
+      ...data,
+    };
+
+    logFile!.writeAsStringSync(
+      '${jsonEncode(logEntry)}\n',
+      mode: FileMode.append,
+    );
   }
 
   /// Implements the bidirectional streaming RPC method defined in the protobuf.
@@ -215,121 +237,138 @@ class CommandServiceImpl extends pbgrpc.CommandServiceBase {
 
         _log(Level.info, 'Received request: $input', sessionId: sessionId);
 
-        try {
-          // Flush any existing buffer before starting a new command
-          if (input.startsWith('START:') && !isInteractiveAnswer) {
-            _flushBuffer(sessionId);
+        // Log command received
+        if (input.startsWith('START:') && !isInteractiveAnswer) {
+          final commandToRun = input.substring('START:'.length).trim();
+          _logToFile({
+            'event': 'command_received',
+            'session_id': sessionId,
+            'command': commandToRun,
+            'type': 'command',
+          });
 
-            final commandToRun = input.substring('START:'.length).trim();
-            _log(
-              Level.info,
-              'Starting new process: $commandToRun',
-              sessionId: sessionId,
-            );
-
-            // Terminate existing process if one is running
-            if (_currentProcess != null) {
-              _log(
-                Level.warning,
-                'Terminating existing process',
-                sessionId: sessionId,
-              );
-              _currentProcess!.kill();
-              _currentProcess = null;
-            }
-
-            // Start the new process
-            try {
-              _currentProcess = await Process.start(
-                'bash',
-                ['-c', commandToRun],
-              );
-              _log(
-                Level.info,
-                'Process started successfully',
-                sessionId: sessionId,
-              );
-
-              // Handle process stdout
-              _currentProcess!.stdout
-                  .transform(const SystemEncoding().decoder)
-                  .transform(const LineSplitter())
-                  .listen(
-                (line) {
-                  final isPrompt = line.contains('?(y/n)');
-                  if (isPrompt) {
-                    _log(
-                      Level.info,
-                      'Interactive prompt detected',
-                      sessionId: sessionId,
-                    );
-                  }
-                  _sendResponse(sessionId, line, isPrompt: isPrompt);
-                  _log(Level.verbose, 'STDOUT: $line', sessionId: sessionId);
-                },
-                cancelOnError: false,
-              );
-
-              // Handle process stderr
-              _currentProcess!.stderr
-                  .transform(const SystemEncoding().decoder)
-                  .transform(const LineSplitter())
-                  .listen(
-                (line) {
-                  _sendResponse(sessionId, '[ERR] $line');
-                  _log(Level.error, 'STDERR: $line', sessionId: sessionId);
-                },
-                cancelOnError: false,
-              );
-
-              // Handle process completion
-              unawaited(
-                _currentProcess!.exitCode.then((exitCode) {
-                  _log(
-                    Level.info,
-                    'Process completed with exit code: $exitCode',
-                    sessionId: sessionId,
-                  );
-                  _sendResponse(
-                    sessionId,
-                    'Command completed with exit code: $exitCode',
-                  );
-                  _currentProcess = null;
-                }),
-              );
-            } catch (e) {
-              _log(
-                Level.error,
-                'Failed to start process: $e',
-                sessionId: sessionId,
-              );
-              _sendResponse(sessionId, 'Failed to start process: $e');
-            }
-          } else if (isInteractiveAnswer && _currentProcess != null) {
-            _log(
-              Level.verbose,
-              'Sending interactive input to process',
-              sessionId: sessionId,
-            );
-            _currentProcess!.stdin.writeln(input);
-          } else {
+          // Terminate existing process if one is running
+          if (_currentProcess != null) {
             _log(
               Level.warning,
-              'Unknown command or no process running',
+              'Terminating existing process',
               sessionId: sessionId,
             );
-            _sendResponse(sessionId, 'Unknown command or no process running.');
+            _currentProcess!.kill();
+            _currentProcess = null;
           }
-        } catch (e) {
+
+          try {
+            _currentProcess = await Process.start(
+              'bash',
+              ['-c', commandToRun],
+            );
+
+            _logToFile({
+              'event': 'command_started',
+              'session_id': sessionId,
+              'command': commandToRun,
+              'pid': _currentProcess!.pid,
+            });
+
+            // Handle process stdout
+            _currentProcess!.stdout
+                .transform(const SystemEncoding().decoder)
+                .transform(const LineSplitter())
+                .listen(
+              (line) {
+                final isPrompt = line.contains('?(y/n)');
+                if (isPrompt) {
+                  _logToFile({
+                    'event': 'interactive_prompt',
+                    'session_id': sessionId,
+                    'prompt': line,
+                  });
+                }
+                _sendResponse(sessionId, line, isPrompt: isPrompt);
+                _log(Level.verbose, 'STDOUT: $line', sessionId: sessionId);
+              },
+              cancelOnError: false,
+            );
+
+            // Handle process stderr
+            _currentProcess!.stderr
+                .transform(const SystemEncoding().decoder)
+                .transform(const LineSplitter())
+                .listen(
+              (line) {
+                _logToFile({
+                  'event': 'command_error',
+                  'session_id': sessionId,
+                  'error': line,
+                });
+                _sendResponse(sessionId, '[ERR] $line');
+                _log(Level.error, 'STDERR: $line', sessionId: sessionId);
+              },
+              cancelOnError: false,
+            );
+
+            // Handle process completion
+            unawaited(
+              _currentProcess!.exitCode.then((exitCode) {
+                _logToFile({
+                  'event': 'command_completed',
+                  'session_id': sessionId,
+                  'exit_code': exitCode,
+                  'status': exitCode == 0 ? 'success' : 'error',
+                });
+                _log(
+                  Level.info,
+                  'Process completed with exit code: $exitCode',
+                  sessionId: sessionId,
+                );
+                _sendResponse(
+                  sessionId,
+                  'Command completed with exit code: $exitCode',
+                );
+                _currentProcess = null;
+              }),
+            );
+          } catch (e) {
+            _logToFile({
+              'event': 'command_failed',
+              'session_id': sessionId,
+              'error': e.toString(),
+            });
+            _log(
+              Level.error,
+              'Failed to start process: $e',
+              sessionId: sessionId,
+            );
+            _sendResponse(sessionId, 'Failed to start process: $e');
+          }
+        } else if (isInteractiveAnswer && _currentProcess != null) {
+          _logToFile({
+            'event': 'interactive_input',
+            'session_id': sessionId,
+            'input': input,
+          });
           _log(
-            Level.error,
-            'Error processing command: $e',
+            Level.verbose,
+            'Sending interactive input to process',
             sessionId: sessionId,
           );
-          _sendResponse(sessionId, 'Error processing command: $e');
+          _currentProcess!.stdin.writeln(input);
+        } else {
+          _log(
+            Level.warning,
+            'Unknown command or no process running',
+            sessionId: sessionId,
+          );
+          _sendResponse(sessionId, 'Unknown command or no process running.');
         }
       }
     } catch (e) {
+      _logToFile({
+        'event': 'stream_error',
+        'session_id': sessionId,
+        'error': e.toString(),
+      });
       _log(Level.error, 'Error in request stream: $e', sessionId: sessionId);
       rethrow;
     }

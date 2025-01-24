@@ -38,3 +38,5 @@ builders:
     auto_apply: dependents
     build_to: source
 
+assets:
+  - assets/

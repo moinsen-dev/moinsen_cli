@@ -5,7 +5,7 @@ import '../models/settings.dart';
 import '../providers/command_provider.dart';
 import '../providers/settings_provider.dart';
 import '../services/toast_service.dart';
-import 'command_screen.dart';
+import 'home_screen.dart';
 
 class ConnectionScreen extends ConsumerStatefulWidget {
   const ConnectionScreen({super.key});
@@ -81,7 +81,7 @@ class _ConnectionScreenState extends ConsumerState<ConnectionScreen> {
 
         if (success && mounted) {
           Navigator.of(context).pushReplacement(
-            MaterialPageRoute(builder: (context) => const CommandPage()),
+            MaterialPageRoute(builder: (context) => const HomeScreen()),
           );
         } else if (mounted) {
           ToastService.showError(
@@ -106,112 +106,134 @@ class _ConnectionScreenState extends ConsumerState<ConnectionScreen> {
       appBar: AppBar(
         title: const Text('Connect to Server'),
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              TextFormField(
-                controller: _hostController,
-                decoration: InputDecoration(
-                  labelText: 'Host',
-                  border: const OutlineInputBorder(),
-                  suffixIcon: _hostController.text.isNotEmpty
-                      ? IconButton(
-                          icon: const Icon(Icons.clear),
-                          onPressed: () {
-                            setState(() {
-                              _hostController.clear();
-                            });
-                          },
-                        )
-                      : null,
-                ),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter a host';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _portController,
-                decoration: InputDecoration(
-                  labelText: 'Port',
-                  border: const OutlineInputBorder(),
-                  suffixIcon: _portController.text.isNotEmpty
-                      ? IconButton(
-                          icon: const Icon(Icons.clear),
-                          onPressed: () {
-                            setState(() {
-                              _portController.clear();
-                            });
-                          },
-                        )
-                      : null,
-                ),
-                keyboardType: TextInputType.number,
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter a port';
-                  }
-                  final port = int.tryParse(value);
-                  if (port == null || port <= 0 || port > 65535) {
-                    return 'Please enter a valid port number (1-65535)';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 24),
-              TextFormField(
-                controller: _securityController,
-                decoration: InputDecoration(
-                  labelText: 'Security Token (Optional)',
-                  border: const OutlineInputBorder(),
-                  suffixIcon: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      if (_securityController.text.isNotEmpty)
-                        IconButton(
-                          icon: const Icon(Icons.clear),
-                          onPressed: () {
-                            setState(() {
-                              _securityController.clear();
-                            });
+      body: Container(
+        decoration: const BoxDecoration(
+          image: DecorationImage(
+            image: AssetImage('assets/moinsen-bg.png'),
+            fit: BoxFit.cover,
+          ),
+        ),
+        child: Container(
+          color: Colors.black.withOpacity(0.5), // Semi-transparent overlay
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Center(
+              child: Card(
+                elevation: 8,
+                color: Theme.of(context).cardColor.withOpacity(0.9),
+                child: Padding(
+                  padding: const EdgeInsets.all(24.0),
+                  child: Form(
+                    key: _formKey,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        TextFormField(
+                          controller: _hostController,
+                          decoration: InputDecoration(
+                            labelText: 'Host',
+                            border: const OutlineInputBorder(),
+                            suffixIcon: _hostController.text.isNotEmpty
+                                ? IconButton(
+                                    icon: const Icon(Icons.clear),
+                                    onPressed: () {
+                                      setState(() {
+                                        _hostController.clear();
+                                      });
+                                    },
+                                  )
+                                : null,
+                          ),
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return 'Please enter a host';
+                            }
+                            return null;
                           },
                         ),
-                      IconButton(
-                        icon: Icon(
-                          _obscureSecurityToken
-                              ? Icons.visibility_off
-                              : Icons.visibility,
+                        const SizedBox(height: 16),
+                        TextFormField(
+                          controller: _portController,
+                          decoration: InputDecoration(
+                            labelText: 'Port',
+                            border: const OutlineInputBorder(),
+                            suffixIcon: _portController.text.isNotEmpty
+                                ? IconButton(
+                                    icon: const Icon(Icons.clear),
+                                    onPressed: () {
+                                      setState(() {
+                                        _portController.clear();
+                                      });
+                                    },
+                                  )
+                                : null,
+                          ),
+                          keyboardType: TextInputType.number,
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return 'Please enter a port';
+                            }
+                            final port = int.tryParse(value);
+                            if (port == null || port <= 0 || port > 65535) {
+                              return 'Please enter a valid port number (1-65535)';
+                            }
+                            return null;
+                          },
                         ),
-                        onPressed: () {
-                          setState(() {
-                            _obscureSecurityToken = !_obscureSecurityToken;
-                          });
-                        },
-                      ),
-                    ],
+                        const SizedBox(height: 24),
+                        TextFormField(
+                          controller: _securityController,
+                          decoration: InputDecoration(
+                            labelText: 'Security Token (Optional)',
+                            border: const OutlineInputBorder(),
+                            suffixIcon: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                if (_securityController.text.isNotEmpty)
+                                  IconButton(
+                                    icon: const Icon(Icons.clear),
+                                    onPressed: () {
+                                      setState(() {
+                                        _securityController.clear();
+                                      });
+                                    },
+                                  ),
+                                IconButton(
+                                  icon: Icon(
+                                    _obscureSecurityToken
+                                        ? Icons.visibility_off
+                                        : Icons.visibility,
+                                  ),
+                                  onPressed: () {
+                                    setState(() {
+                                      _obscureSecurityToken =
+                                          !_obscureSecurityToken;
+                                    });
+                                  },
+                                ),
+                              ],
+                            ),
+                          ),
+                          obscureText: _obscureSecurityToken,
+                        ),
+                        const SizedBox(height: 16),
+                        ElevatedButton(
+                          onPressed: _isConnecting ? null : _connect,
+                          style: ElevatedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                          ),
+                          child: _isConnecting
+                              ? const CircularProgressIndicator()
+                              : const Text('Connect'),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-                obscureText: _obscureSecurityToken,
               ),
-              const SizedBox(height: 16),
-              ElevatedButton(
-                onPressed: _isConnecting ? null : _connect,
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                ),
-                child: _isConnecting
-                    ? const CircularProgressIndicator()
-                    : const Text('Connect'),
-              ),
-            ],
+            ),
           ),
         ),
       ),

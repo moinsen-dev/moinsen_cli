@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
 
@@ -33,10 +34,30 @@ class ServeCommand extends Command<int> {
       ..addOption(
         'secret-key',
         help: 'Provide a specific secret key for server access',
+      )
+      ..addFlag(
+        'log',
+        help: 'Enable command logging to .moinsen-command-log.json',
+        negatable: false,
       );
   }
 
   final Logger _logger;
+  File? _logFile;
+
+  void _logCommand(Map<String, dynamic> data) {
+    if (_logFile == null) return;
+
+    final logEntry = {
+      'timestamp': DateTime.now().toIso8601String(),
+      ...data,
+    };
+
+    _logFile!.writeAsStringSync(
+      '${jsonEncode(logEntry)},\n',
+      mode: FileMode.append,
+    );
+  }
 
   @override
   String get description => 'Start the gRPC server';
@@ -49,6 +70,18 @@ class ServeCommand extends Command<int> {
     final port = int.parse(argResults?['port'] as String);
     final useSecret = argResults?['secret'] as bool;
     var secretKey = argResults?['secret-key'] as String?;
+    final enableLogging = argResults?['log'] as bool;
+
+    if (enableLogging) {
+      _logFile = File('.moinsen-command-log.json');
+      _logger.info('Command logging enabled: ${_logFile!.path}');
+
+      _logCommand({
+        'event': 'server_start',
+        'port': port,
+        'secure': useSecret || secretKey != null,
+      });
+    }
 
     if (useSecret || secretKey != null) {
       if (secretKey == null) {
@@ -78,7 +111,10 @@ class ServeCommand extends Command<int> {
 
     final server = Server.create(
       services: [
-        CommandServiceImpl(secret: secretKey),
+        CommandServiceImpl(
+          secret: secretKey,
+          logFile: enableLogging ? _logFile : null,
+        ),
       ],
     );
 
@@ -86,11 +122,33 @@ class ServeCommand extends Command<int> {
       await server.serve(port: port);
       _logger.success('Server listening on port ${server.port}');
 
+      if (_logFile != null) {
+        _logCommand({
+          'event': 'server_running',
+          'port': server.port,
+        });
+      }
+
       // Keep the command running
       await ProcessSignal.sigint.watch().first;
+
+      if (_logFile != null) {
+        _logCommand({
+          'event': 'server_shutdown',
+          'reason': 'sigint',
+        });
+      }
+
       await server.shutdown();
       return ExitCode.success.code;
     } catch (e) {
+      if (_logFile != null) {
+        _logCommand({
+          'event': 'server_error',
+          'error': e.toString(),
+        });
+      }
+
       _logger.err('Failed to start server: $e');
       return ExitCode.software.code;
     }

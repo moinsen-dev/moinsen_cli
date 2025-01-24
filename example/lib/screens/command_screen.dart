@@ -6,6 +6,7 @@ import '../providers/settings_provider.dart';
 import '../screens/connection_screen.dart';
 import '../screens/settings_screen.dart';
 import '../widgets/chat_message_widget.dart';
+import '../widgets/command_input_widget.dart';
 import '../widgets/typing_indicator.dart';
 
 class CommandPage extends ConsumerStatefulWidget {
@@ -40,12 +41,9 @@ class _CommandPageState extends ConsumerState<CommandPage> {
     });
   }
 
-  void _sendCommand() {
-    final cmdText = _cmdController.text.trim();
-    if (cmdText.isEmpty) return;
-
-    ref.read(commandProvider.notifier).sendCommand(cmdText);
-    _cmdController.clear();
+  void _sendCommand(String command) {
+    if (command.isEmpty) return;
+    ref.read(commandProvider.notifier).sendCommand(command);
     _scrollToBottom();
   }
 
@@ -156,14 +154,20 @@ class _CommandPageState extends ConsumerState<CommandPage> {
                       onDelete: () {
                         ref.read(commandProvider.notifier).deleteMessage(index);
                       },
+                      onEdit: (text) {
+                        _cmdController.text = text;
+                        _cmdController.selection = TextSelection.fromPosition(
+                          TextPosition(offset: text.length),
+                        );
+                      },
                     );
                   },
                 ),
               ),
-              Padding(
-                padding: const EdgeInsets.all(8.0),
-                child: state.awaitingPrompt
-                    ? Row(
+              state.awaitingPrompt
+                  ? Padding(
+                      padding: const EdgeInsets.all(8.0),
+                      child: Row(
                         children: [
                           Expanded(
                             child: TextField(
@@ -180,26 +184,12 @@ class _CommandPageState extends ConsumerState<CommandPage> {
                             onPressed: _sendPromptAnswer,
                           ),
                         ],
-                      )
-                    : Row(
-                        children: [
-                          Expanded(
-                            child: TextField(
-                              controller: _cmdController,
-                              decoration: const InputDecoration(
-                                hintText: 'Enter a command...',
-                                border: OutlineInputBorder(),
-                              ),
-                              onSubmitted: (_) => _sendCommand(),
-                            ),
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.send),
-                            onPressed: _sendCommand,
-                          ),
-                        ],
                       ),
-              ),
+                    )
+                  : CommandInputWidget(
+                      controller: _cmdController,
+                      onSendCommand: _sendCommand,
+                    ),
             ],
           ),
         );
