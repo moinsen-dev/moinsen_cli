@@ -17,7 +17,7 @@ class MoinsenMaterialApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Moinsen gRPC Command Client',
+      title: 'Moinsen AI',
       theme: ThemeData(
         primarySwatch: Colors.blue,
         scaffoldBackgroundColor: const Color(0xFFECE5DD),

@@ -1,26 +1,29 @@
 // GENERATED CODE - DO NOT MODIFY BY HAND
 
-part of 'settings_provider.dart';
+part of 'command_history_service.dart';
 
 // **************************************************************************
 // RiverpodGenerator
 // **************************************************************************
 
-String _$settingsNotifierHash() => r'1cf01509d356dee294fcc500c5ecf7a2789596af';
+String _$commandHistoryServiceHash() =>
+    r'f032095985a7363655e53aa5ff346a112c002329';
 
-/// See also [SettingsNotifier].
-@ProviderFor(SettingsNotifier)
-final settingsNotifierProvider =
-    AutoDisposeAsyncNotifierProvider<SettingsNotifier, Settings>.internal(
-  SettingsNotifier.new,
-  name: r'settingsNotifierProvider',
+/// See also [commandHistoryService].
+@ProviderFor(commandHistoryService)
+final commandHistoryServiceProvider =
+    FutureProvider<CommandHistoryService>.internal(
+  commandHistoryService,
+  name: r'commandHistoryServiceProvider',
   debugGetCreateSourceHash: const bool.fromEnvironment('dart.vm.product')
       ? null
-      : _$settingsNotifierHash,
+      : _$commandHistoryServiceHash,
   dependencies: null,
   allTransitiveDependencies: null,
 );
 
-typedef _$SettingsNotifier = AutoDisposeAsyncNotifier<Settings>;
+@Deprecated('Will be removed in 3.0. Use Ref instead')
+// ignore: unused_element
+typedef CommandHistoryServiceRef = FutureProviderRef<CommandHistoryService>;
 // ignore_for_file: type=lint
 // ignore_for_file: subtype_of_sealed_class, invalid_use_of_internal_member, invalid_use_of_visible_for_testing_member, deprecated_member_use_from_same_package

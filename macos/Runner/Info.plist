@@ -1,0 +1,10 @@
+<key>CFBundleIdentifier</key>
+<string>com.example.moinsencli</string>
+<key>com.apple.security.network.client</key>
+<true/>
+<key>com.apple.security.network.server</key>
+<true/>
+<key>CFBundleName</key>
+<string>Moinsen AI</string>
+<key>CFBundleDisplayName</key>
+<string>Moinsen AI</string>

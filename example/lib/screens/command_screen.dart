@@ -87,7 +87,7 @@ class _CommandPageState extends ConsumerState<CommandPage> {
       data: (state) {
         return Scaffold(
           appBar: AppBar(
-            title: const Text('Moinsen gRPC Command Client'),
+            title: const Text('Moinsen AI'),
             actions: [
               IconButton(
                 icon: const Icon(Icons.settings),

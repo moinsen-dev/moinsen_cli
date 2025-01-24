@@ -104,7 +104,7 @@ class _ConnectionScreenState extends ConsumerState<ConnectionScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Connect to Server'),
+        title: const Text('Moinseb AI - Connect to Server'),
       ),
       body: Container(
         decoration: const BoxDecoration(
