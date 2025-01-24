@@ -8,3 +8,6 @@
 /// moinsen --help
 /// ```
 library;
+
+export 'src/generated/command.pb.dart';
+export 'src/generated/command.pbgrpc.dart';

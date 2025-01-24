@@ -61,6 +61,12 @@ $ genhtml coverage/lcov.info -o coverage/
 $ open coverage/index.html
 ```
 
+## Generate protos
+
+```sh
+$ protoc --dart_out=grpc:lib/generated --proto_path=protos protos/command.proto
+```
+
 ---
 
 [coverage_badge]: coverage_badge.svg

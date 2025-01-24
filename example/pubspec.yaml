@@ -1,0 +1,31 @@
+name: moinsen_cli_app
+description: "Example app for moinsen_cli"
+publish_to: 'none' # Remove this line if you wish to publish to pub.dev
+version: 0.1.0
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+  flutter: '>=3.0.0<4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  grpc: ^4.0.1
+  path: ^1.9.0
+  protobuf: ^3.1.0
+  shared_preferences: ^2.4.0
+  sqflite: ^2.4.1
+  moinsen_cli:
+    path: ..
+  flutter_riverpod: ^2.6.1
+  riverpod_annotation: ^2.6.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+  build_runner: ^2.4.14
+  riverpod_generator: ^2.6.4
+
+flutter:
+  uses-material-design: true
