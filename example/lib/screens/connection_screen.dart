@@ -50,46 +50,44 @@ class _ConnectionScreenState extends ConsumerState<ConnectionScreen> {
     setState(() => _isConnecting = true);
 
     try {
-      final success = await ref.read(commandProvider.notifier).connect(
-            host: _hostController.text,
-            port: int.parse(_portController.text),
-            security: _securityController.text.isEmpty
-                ? null
-                : _securityController.text,
-          );
+      // Save settings first
+      final settings = await Settings.load();
+      settings.serverName = _hostController.text;
+      settings.port = int.parse(_portController.text);
+      settings.secretKey =
+          _securityController.text.isEmpty ? null : _securityController.text;
+      await settings.save();
 
-      if (success && mounted) {
-        // Update all settings in a single operation
-        final settings = await Settings.load();
-        settings.serverName = _hostController.text;
-        settings.port = int.parse(_portController.text);
-        settings.secretKey =
-            _securityController.text.isEmpty ? null : _securityController.text;
-        await settings.save();
-
-        // Notify the provider of the changes
-        if (mounted) {
-          await ref
-              .read(settingsNotifierProvider.notifier)
-              .updateServerSettings(
-                serverName: settings.serverName,
-                port: settings.port,
+      // Update provider settings
+      if (mounted) {
+        await ref.read(settingsNotifierProvider.notifier).updateServerSettings(
+              serverName: settings.serverName,
+              port: settings.port,
+            );
+        if (settings.secretKey != null && mounted) {
+          await ref.read(settingsNotifierProvider.notifier).updateSecretKey(
+                settings.secretKey,
               );
-          if (settings.secretKey != null && mounted) {
-            await ref.read(settingsNotifierProvider.notifier).updateSecretKey(
-                  settings.secretKey,
-                );
-          }
         }
+      }
 
-        if (mounted) {
+      // Attempt connection
+      if (mounted) {
+        final success = await ref.read(commandProvider.notifier).connect(
+              host: settings.serverName,
+              port: settings.port,
+              security: settings.secretKey,
+            );
+
+        if (success && mounted) {
           Navigator.of(context).pushReplacement(
             MaterialPageRoute(builder: (context) => const CommandPage()),
           );
+        } else if (mounted) {
+          ToastService.showError(
+            'Failed to connect. Please check your settings.',
+          );
         }
-      } else if (mounted) {
-        ToastService.showError(
-            'Failed to connect. Please check your settings.');
       }
     } catch (e) {
       if (mounted) {

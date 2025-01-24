@@ -7,10 +7,13 @@
     {
       "name": "moinsen_cli",
       "request": "launch",
-      "type": "dart"
+      "type": "dart",
+      "args": ["serve"],
+      "cwd": "${workspaceFolder}",
+      "program": "bin/moinsen.dart"
     },
     {
-      "name": "example",
+      "name": "app",
       "request": "launch",
       "type": "dart",
       "cwd": "${workspaceFolder}/example",

@@ -115,9 +115,24 @@ class _CommandPageState extends ConsumerState<CommandPage> {
                   child: Icon(Icons.circle, color: Colors.green, size: 12),
                 )
               else
-                const Padding(
-                  padding: EdgeInsets.only(right: 16.0),
-                  child: Icon(Icons.circle, color: Colors.red, size: 12),
+                Padding(
+                  padding: const EdgeInsets.only(right: 16.0),
+                  child: InkWell(
+                    onTap: () {
+                      final settings =
+                          ref.read(settingsNotifierProvider).valueOrNull;
+                      if (settings != null) {
+                        ref.read(commandProvider.notifier).connect(
+                              host: settings.serverName,
+                              port: settings.port,
+                            );
+                      }
+                    },
+                    child: const Tooltip(
+                      message: 'Click to reconnect',
+                      child: Icon(Icons.circle, color: Colors.red, size: 12),
+                    ),
+                  ),
                 ),
             ],
           ),

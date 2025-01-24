@@ -55,16 +55,18 @@ class CommandNotifier extends StateNotifier<AsyncValue<CommandState>> {
   final Ref ref;
   ClientChannel? _channel;
   CommandServiceClient? _client;
-  final _requestStreamController = StreamController<CommandRequest>();
   StreamSubscription<CommandResponse>? _responseSubscription;
   Timer? _typingTimer;
   final String _currentSessionId = 'demo-session';
+  StreamController<CommandRequest>? _requestStreamController;
+  bool _isInitializing = false;
+  Settings? _currentSettings;
+  bool _settingsListenerSetup = false;
 
   CommandNotifier(this.ref) : super(AsyncValue.data(CommandState())) {
     // Initialize logging with more detailed format
     Logger.root.level = Level.ALL;
     Logger.root.onRecord.listen((record) {
-      // Using debugPrint instead of print for better logging
       debugPrint(
           '${record.time}: ${record.level.name}: ${record.loggerName}: ${record.message}');
       if (record.error != null) {
@@ -74,35 +76,23 @@ class CommandNotifier extends StateNotifier<AsyncValue<CommandState>> {
         }
       }
     });
+  }
+
+  void _setupSettingsListener() {
+    if (_settingsListenerSetup) return;
+    _settingsListenerSetup = true;
 
     ref.listen(settingsNotifierProvider, (previous, next) {
       next.whenData((settings) async {
-        final prevSettings = previous?.value;
-        if (prevSettings != null) {
-          final needsReconnect =
-              prevSettings.serverName != settings.serverName ||
-                  prevSettings.port != settings.port;
-          if (needsReconnect) {
+        if (_currentSettings?.serverName != settings.serverName ||
+            _currentSettings?.port != settings.port) {
+          _log.info('Settings changed, updating connection');
+          _currentSettings = settings;
+          if (state.value!.connected) {
             await _reconnect();
           }
         }
       });
-    });
-
-    // Initialize connection based on settings
-    ref.read(settingsNotifierProvider.future).then((settings) async {
-      try {
-        await _initGrpcConnection(settings.serverName, settings.port);
-      } catch (e) {
-        state = AsyncValue.data(CommandState(
-          messages: [
-            ChatMessage(
-              text: 'Failed to initialize connection',
-              isCommand: false,
-            ),
-          ],
-        ));
-      }
     });
   }
 
@@ -111,95 +101,74 @@ class CommandNotifier extends StateNotifier<AsyncValue<CommandState>> {
     required int port,
     String? security,
   }) async {
+    if (_isInitializing) {
+      _log.info('Connection already in progress, waiting...');
+      // Wait for current initialization to complete
+      while (_isInitializing) {
+        await Future.delayed(const Duration(milliseconds: 100));
+      }
+      if (state.value!.connected) {
+        _log.info('Already connected after waiting');
+        return true;
+      }
+    }
+
+    _isInitializing = true;
     try {
-      await _responseSubscription?.cancel();
-      await _channel?.shutdown();
+      _currentSettings =
+          Settings(serverName: host, port: port, secretKey: security);
 
-      _channel = ClientChannel(
-        host,
-        port: port,
-        options: ChannelOptions(
-          credentials: ChannelCredentials.insecure(),
-          connectTimeout: const Duration(seconds: 5),
-          idleTimeout: const Duration(seconds: 10),
-        ),
-      );
+      // Set up settings listener if not already set up
+      _setupSettingsListener();
 
-      if (_channel == null) {
-        throw GrpcError.internal('Failed to create channel');
-      }
-
-      Map<String, String> metadata = {};
-      if (security != null && security.isNotEmpty) {
-        metadata['secret'] = security;
-      }
-
-      _client = CommandServiceClient(
-        _channel!,
-        options: CallOptions(metadata: metadata),
-      );
-
-      final responseStream =
-          _client?.streamCommand(_requestStreamController.stream);
-      if (responseStream == null) {
-        throw GrpcError.internal('Failed to create response stream');
-      }
-
-      _responseSubscription = responseStream.listen(
-        (response) => _handleResponse(response),
-        onError: (error) => _handleError(error),
-        onDone: () => _handleDone(),
-      );
-
-      state = AsyncValue.data(state.value!.copyWith(
-        connected: true,
-        messages: [
-          ChatMessage(
-            text: 'Successfully connected to gRPC server on $host:$port',
-            isCommand: false,
-          ),
-        ],
-      ));
+      // Attempt connection
+      await _initGrpcConnection(host, port);
       return true;
     } catch (e) {
-      String errorMessage = 'Connection failed: ';
-      if (e is GrpcError) {
-        errorMessage += '${e.code} - ${e.message}';
-      } else {
-        errorMessage += e.toString();
-      }
-
-      state = AsyncValue.data(state.value!.copyWith(
-        connected: false,
-        messages: [
-          ChatMessage(
-            text: errorMessage,
-            isCommand: false,
-          ),
-        ],
-      ));
+      _log.severe('Connection failed: ${e.toString()}');
       return false;
+    } finally {
+      _isInitializing = false;
     }
   }
 
   Future<void> disconnect() async {
     try {
+      _log.info('Disconnecting from server');
       await _responseSubscription?.cancel();
+      _responseSubscription = null;
       await _channel?.shutdown();
+      _channel = null;
       _client = null;
-      state = AsyncValue.data(state.value!.copyWith(connected: false));
+      await _requestStreamController?.close();
+      _requestStreamController = null;
+      state = AsyncValue.data(state.value!.copyWith(
+        connected: false,
+        messages: [
+          ...state.value!.messages,
+          ChatMessage(
+            text: 'Disconnected from server',
+            isCommand: false,
+          ),
+        ],
+      ));
     } catch (e) {
       _handleError('Disconnect failed: ${e.toString()}');
     }
   }
 
   Future<void> _initGrpcConnection(String serverName, int port) async {
+    if (state.value!.connected) {
+      _log.info('Already connected, skipping connection attempt');
+      return;
+    }
+
     try {
       // Clean up existing connection first
-      await _responseSubscription?.cancel();
-      await _channel?.shutdown();
+      await disconnect();
 
       // Log connection attempt
+      _log.info('Attempting to connect to gRPC server on $serverName:$port');
       state = AsyncValue.data(state.value!.copyWith(
         connected: false,
         messages: [
@@ -211,10 +180,12 @@ class CommandNotifier extends StateNotifier<AsyncValue<CommandState>> {
         ],
       ));
 
-      final settings = await Settings.load();
-      Map<String, String> metadata = {};
-      if (settings.secretKey != null && settings.secretKey!.isNotEmpty) {
-        metadata['secret'] = settings.secretKey!;
+      Map<String, String> metadata = {
+        'port': port.toString(),
+      };
+      if (_currentSettings?.secretKey != null &&
+          _currentSettings!.secretKey!.isNotEmpty) {
+        metadata['secret'] = _currentSettings!.secretKey!;
       }
 
       _channel = ClientChannel(
@@ -222,10 +193,8 @@ class CommandNotifier extends StateNotifier<AsyncValue<CommandState>> {
         port: port,
         options: ChannelOptions(
           credentials: ChannelCredentials.insecure(),
-          // Add timeout for connection attempts
           connectTimeout: const Duration(seconds: 5),
-          // Add keepalive ping
-          idleTimeout: const Duration(seconds: 10),
+          idleTimeout: const Duration(minutes: 5),
         ),
       );
 
@@ -233,43 +202,76 @@ class CommandNotifier extends StateNotifier<AsyncValue<CommandState>> {
         throw GrpcError.internal('Failed to create channel');
       }
 
-      // Test the connection before proceeding
-      final connection = await _channel?.getConnection();
-      if (connection == null) {
-        throw GrpcError.internal('Failed to create connection');
-      }
-
       _client = CommandServiceClient(
         _channel!,
         options: CallOptions(metadata: metadata),
       );
 
+      // Create a new request stream controller
+      _requestStreamController = StreamController<CommandRequest>();
+
+      // Set up the bidirectional stream
       final responseStream =
-          _client?.streamCommand(_requestStreamController.stream);
+          _client?.streamCommand(_requestStreamController!.stream);
       if (responseStream == null) {
         throw GrpcError.internal('Failed to create response stream');
       }
 
+      // Create a completer for initial connection
+      final connectionCompleter = Completer<void>();
+
+      // Set up response handling
       _responseSubscription = responseStream.listen(
-        (response) => _handleResponse(response),
-        onError: (error) => _handleError(error),
-        onDone: () => _handleDone(),
+        (response) {
+          _log.fine('Received response: ${response.toString()}');
+          if (!connectionCompleter.isCompleted &&
+              response.sessionId == 'initial') {
+            connectionCompleter.complete();
+          }
+          _handleResponse(response);
+        },
+        onError: (error) {
+          _log.severe('Stream error: $error');
+          if (!connectionCompleter.isCompleted) {
+            connectionCompleter.completeError(error);
+          }
+          _handleError(error);
+        },
+        onDone: () {
+          _log.info('Response stream done, cleaning up');
+          if (!connectionCompleter.isCompleted) {
+            connectionCompleter.completeError(
+              GrpcError.unavailable('Connection closed before initialization'),
+            );
+          }
+          _handleDone();
+        },
+        cancelOnError: false,
       );
 
-      if (_client == null || _responseSubscription == null) {
-        throw GrpcError.internal(
-            'Failed to initialize client or response stream');
-      }
+      // Wait for initial connection response
+      try {
+        await connectionCompleter.future.timeout(
+          const Duration(seconds: 5),
+          onTimeout: () {
+            throw GrpcError.deadlineExceeded('Connection timed out');
+          },
+        );
 
-      state = AsyncValue.data(state.value!.copyWith(
-        connected: true,
-        messages: [
-          ChatMessage(
-            text: 'Successfully connected to gRPC server on $serverName:$port',
-            isCommand: false,
-          ),
-        ],
-      ));
+        state = AsyncValue.data(state.value!.copyWith(
+          connected: true,
+          messages: [
+            ChatMessage(
+              text:
+                  'Successfully connected to gRPC server on $serverName:$port',
+              isCommand: false,
+            ),
+          ],
+        ));
+      } catch (e) {
+        await disconnect();
+        rethrow;
+      }
     } catch (e) {
       String errorMessage = 'Connection failed: ';
       if (e is GrpcError) {
@@ -294,13 +296,14 @@ class CommandNotifier extends StateNotifier<AsyncValue<CommandState>> {
 
   Future<void> _reconnect() async {
     try {
-      await _responseSubscription?.cancel();
-      await _channel?.shutdown();
-      _client = null;
-      state = AsyncValue.data(state.value!.copyWith(connected: false));
-
-      final settings = await ref.read(settingsNotifierProvider.future);
-      await _initGrpcConnection(settings.serverName, settings.port);
+      _log.info('Attempting to reconnect');
+      await disconnect();
+      if (_currentSettings != null) {
+        await _initGrpcConnection(
+            _currentSettings!.serverName, _currentSettings!.port);
+      } else {
+        throw Exception('No settings available for reconnection');
+      }
     } catch (e) {
       _handleError('Reconnection failed: ${e.toString()}');
     }
@@ -442,12 +445,12 @@ class CommandNotifier extends StateNotifier<AsyncValue<CommandState>> {
 
       final request = CommandRequest(
         sessionId: _currentSessionId,
-        inputData: command, // Removed START: prefix as it might cause issues
+        inputData: 'START:$command',
         isInteractiveAnswer: false,
       );
 
       _log.info('Sending command request: ${request.toString()}');
-      _requestStreamController.add(request);
+      _requestStreamController!.add(request);
     } catch (e, stackTrace) {
       _log.severe('Error sending command', e, stackTrace);
       _handleError('Failed to send command: ${e.toString()}');
@@ -481,7 +484,7 @@ class CommandNotifier extends StateNotifier<AsyncValue<CommandState>> {
         isInteractiveAnswer: true,
       );
 
-      _requestStreamController.add(request);
+      _requestStreamController!.add(request);
     } catch (e) {
       _handleError('Failed to send prompt answer: ${e.toString()}');
     }
@@ -491,7 +494,7 @@ class CommandNotifier extends StateNotifier<AsyncValue<CommandState>> {
     _typingTimer?.cancel();
     _responseSubscription?.cancel();
     _channel?.shutdown();
-    _requestStreamController.close();
+    _requestStreamController?.close();
   }
 }
 
