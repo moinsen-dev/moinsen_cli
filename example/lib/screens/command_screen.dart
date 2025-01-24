@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../providers/command_provider.dart';
 import '../providers/settings_provider.dart';
+import '../screens/connection_screen.dart';
 import '../screens/settings_screen.dart';
 import '../widgets/chat_message_widget.dart';
 import '../widgets/typing_indicator.dart';
@@ -96,6 +97,19 @@ class _CommandPageState extends ConsumerState<CommandPage> {
                 tooltip: 'Settings',
               ),
               if (state.connected)
+                IconButton(
+                  icon: const Icon(Icons.logout),
+                  onPressed: () {
+                    ref.read(commandProvider.notifier).disconnect();
+                    Navigator.of(context).pushReplacement(
+                      MaterialPageRoute(
+                        builder: (context) => const ConnectionScreen(),
+                      ),
+                    );
+                  },
+                  tooltip: 'Disconnect',
+                ),
+              if (state.connected)
                 const Padding(
                   padding: EdgeInsets.only(right: 16.0),
                   child: Icon(Icons.circle, color: Colors.green, size: 12),
@@ -124,6 +138,9 @@ class _CommandPageState extends ConsumerState<CommandPage> {
                     return ChatMessageWidget(
                       message: state.messages[index],
                       fontSize: settings?.fontSize ?? 14.0,
+                      onDelete: () {
+                        ref.read(commandProvider.notifier).deleteMessage(index);
+                      },
                     );
                   },
                 ),

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:fixnum/fixnum.dart' show Int64;
 import 'package:grpc/grpc.dart' as $grpc;
 import 'package:moinsen_cli/src/generated/command.pb.dart' as pb;
 import 'package:moinsen_cli/src/generated/command.pbgrpc.dart' as pbgrpc;
@@ -9,6 +10,9 @@ import 'package:moinsen_cli/src/generated/command.pbgrpc.dart' as pbgrpc;
 /// Eine mögliche Implementierung deines gRPC-Services.
 /// Wir erben von [pbgrpc.CommandServiceBase] (aus command.pbgrpc.dart).
 class CommandServiceImpl extends pbgrpc.CommandServiceBase {
+  CommandServiceImpl({this.secret});
+
+  final String? secret;
   // Beispiel: globaler Prozess, den wir steuern
   Process? _currentProcess;
 
@@ -24,6 +28,18 @@ class CommandServiceImpl extends pbgrpc.CommandServiceBase {
     $grpc.ServiceCall call,
     Stream<pb.CommandRequest> request,
   ) async* {
+    // Validate secret if set
+    final metadata = call.clientMetadata ?? {};
+    final clientSecret = metadata['secret']?.toString();
+
+    if (secret != null && secret!.isNotEmpty) {
+      if (clientSecret != secret) {
+        throw const $grpc.GrpcError.unauthenticated(
+          'Invalid or missing secret key',
+        );
+      }
+    }
+
     // Pro Streaming-Session einen neuen StreamController erzeugen
     _responseController = StreamController<pb.CommandResponse>();
 
@@ -59,13 +75,7 @@ class CommandServiceImpl extends pbgrpc.CommandServiceBase {
             final isPrompt = line.contains('?(y/n)');
 
             // Schicke den Output an den Client
-            _responseController?.add(
-              pb.CommandResponse(
-                sessionId: sessionId,
-                outputData: line,
-                isPrompt: isPrompt,
-              ),
-            );
+            _sendResponse(sessionId, line, isPrompt: isPrompt);
             // Parallel in die lokale Konsole
             stdout.writeln(line);
           });
@@ -75,13 +85,7 @@ class CommandServiceImpl extends pbgrpc.CommandServiceBase {
               .transform(const SystemEncoding().decoder)
               .transform(const LineSplitter())
               .listen((line) {
-            _responseController?.add(
-              pb.CommandResponse(
-                sessionId: sessionId,
-                outputData: '[ERR] $line',
-                isPrompt: false,
-              ),
-            );
+            _sendResponse(sessionId, '[ERR] $line');
             stderr.writeln(line);
           });
         } else if (isInteractiveAnswer && _currentProcess != null) {
@@ -89,13 +93,7 @@ class CommandServiceImpl extends pbgrpc.CommandServiceBase {
           _currentProcess!.stdin.writeln(input);
         } else {
           // Evtl. noch andere Kommandos implementieren, z.B. STOP o.ä.
-          _responseController?.add(
-            pb.CommandResponse(
-              sessionId: sessionId,
-              outputData: 'Unknown command or no process running.',
-              isPrompt: false,
-            ),
-          );
+          _sendResponse(sessionId, 'Unknown command or no process running.');
         }
       },
       onDone: () {
@@ -111,5 +109,18 @@ class CommandServiceImpl extends pbgrpc.CommandServiceBase {
     // Alle Nachrichten, die wir über _responseController senden,
     // geben wir in diesem async*-Generator weiter
     yield* _responseController!.stream;
+  }
+
+  void _sendResponse(String sessionId, String output, {bool isPrompt = false}) {
+    if (_responseController == null) return;
+
+    final response = pb.CommandResponse()
+      ..sessionId = sessionId
+      ..outputData = output
+      ..isPrompt = isPrompt
+      ..timestamp = Int64(DateTime.now().millisecondsSinceEpoch)
+      ..currentFolder = Directory.current.path;
+
+    _responseController!.add(response);
   }
 }

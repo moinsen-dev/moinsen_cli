@@ -1,4 +1,4 @@
-package com.example.example
+package dev.moinsen.moinsen_cli
 
 import io.flutter.embedding.android.FlutterActivity
 

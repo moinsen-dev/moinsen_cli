@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../providers/settings_provider.dart';
-import '../screens/command_page.dart';
+import '../screens/connection_screen.dart';
 
 class MoinsenMaterialApp extends StatelessWidget {
   final ThemeMode themeMode;
@@ -68,7 +68,7 @@ class MoinsenApp extends ConsumerWidget {
       data: (settings) {
         return MoinsenMaterialApp(
           themeMode: settings.themeMode,
-          home: const CommandPage(),
+          home: const ConnectionScreen(),
         );
       },
     );

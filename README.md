@@ -27,17 +27,54 @@ dart pub global activate --source=path <path to this package>
 ## Usage
 
 ```sh
-# Sample command
-$ moinsen sample
+# Start the gRPC server (default port: 50051)
+$ moinsen serve
 
-# Sample command option
-$ moinsen sample --cyan
+# Start the gRPC server on a specific port
+$ moinsen serve --port 50052
+
+# Start the server with auto-generated secure access key
+$ moinsen serve --secret
+
+# Start the server with a specific secret key
+$ moinsen serve --secret-key your_secret_key
 
 # Show CLI version
 $ moinsen --version
 
 # Show usage help
 $ moinsen --help
+```
+
+## Command Service Protocol
+
+The CLI provides a gRPC service for executing commands with the following features:
+
+- Bidirectional streaming for real-time command execution
+- Interactive command support (e.g., handling y/n prompts)
+- Response includes:
+  - Command output
+  - Current working directory
+  - Timestamp
+  - Interactive prompt detection
+- Error handling with stderr output
+
+### Protocol Messages
+
+```protobuf
+message CommandRequest {
+  string session_id = 1;
+  string input_data = 2;
+  bool is_interactive_answer = 3;
+}
+
+message CommandResponse {
+  string session_id = 1;
+  string output_data = 2;
+  bool is_prompt = 3;
+  int64 timestamp = 4;      // Unix timestamp in milliseconds
+  string current_folder = 5; // Current working directory
+}
 ```
 
 ## Running Tests with coverage 🧪
@@ -64,7 +101,7 @@ $ open coverage/index.html
 ## Generate protos
 
 ```sh
-$ protoc --dart_out=grpc:lib/generated --proto_path=protos protos/command.proto
+$ protoc --dart_out=grpc:lib/src/generated -Iprotos protos/command.proto
 ```
 
 ---

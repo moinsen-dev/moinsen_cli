@@ -42,4 +42,14 @@ class SettingsNotifier extends _$SettingsNotifier {
       return settings;
     });
   }
+
+  Future<void> updateSecretKey(String? secretKey) async {
+    state = const AsyncLoading();
+    state = await AsyncValue.guard(() async {
+      final settings = await Settings.load();
+      settings.secretKey = secretKey;
+      await settings.save();
+      return settings;
+    });
+  }
 }

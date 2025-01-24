@@ -11,6 +11,7 @@
 
 import 'dart:core' as $core;
 
+import 'package:fixnum/fixnum.dart' as $fixnum;
 import 'package:protobuf/protobuf.dart' as $pb;
 
 class CommandRequest extends $pb.GeneratedMessage {
@@ -18,6 +19,7 @@ class CommandRequest extends $pb.GeneratedMessage {
     $core.String? sessionId,
     $core.String? inputData,
     $core.bool? isInteractiveAnswer,
+    $fixnum.Int64? timestamp,
   }) {
     final $result = create();
     if (sessionId != null) {
@@ -29,6 +31,9 @@ class CommandRequest extends $pb.GeneratedMessage {
     if (isInteractiveAnswer != null) {
       $result.isInteractiveAnswer = isInteractiveAnswer;
     }
+    if (timestamp != null) {
+      $result.timestamp = timestamp;
+    }
     return $result;
   }
   CommandRequest._() : super();
@@ -39,6 +44,7 @@ class CommandRequest extends $pb.GeneratedMessage {
     ..aOS(1, _omitFieldNames ? '' : 'sessionId')
     ..aOS(2, _omitFieldNames ? '' : 'inputData')
     ..aOB(3, _omitFieldNames ? '' : 'isInteractiveAnswer')
+    ..aInt64(4, _omitFieldNames ? '' : 'timestamp')
     ..hasRequiredFields = false
   ;
 
@@ -89,6 +95,15 @@ class CommandRequest extends $pb.GeneratedMessage {
   $core.bool hasIsInteractiveAnswer() => $_has(2);
   @$pb.TagNumber(3)
   void clearIsInteractiveAnswer() => clearField(3);
+
+  @$pb.TagNumber(4)
+  $fixnum.Int64 get timestamp => $_getI64(3);
+  @$pb.TagNumber(4)
+  set timestamp($fixnum.Int64 v) { $_setInt64(3, v); }
+  @$pb.TagNumber(4)
+  $core.bool hasTimestamp() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearTimestamp() => clearField(4);
 }
 
 class CommandResponse extends $pb.GeneratedMessage {
@@ -96,6 +111,8 @@ class CommandResponse extends $pb.GeneratedMessage {
     $core.String? sessionId,
     $core.String? outputData,
     $core.bool? isPrompt,
+    $fixnum.Int64? timestamp,
+    $core.String? currentFolder,
   }) {
     final $result = create();
     if (sessionId != null) {
@@ -107,6 +124,12 @@ class CommandResponse extends $pb.GeneratedMessage {
     if (isPrompt != null) {
       $result.isPrompt = isPrompt;
     }
+    if (timestamp != null) {
+      $result.timestamp = timestamp;
+    }
+    if (currentFolder != null) {
+      $result.currentFolder = currentFolder;
+    }
     return $result;
   }
   CommandResponse._() : super();
@@ -117,6 +140,8 @@ class CommandResponse extends $pb.GeneratedMessage {
     ..aOS(1, _omitFieldNames ? '' : 'sessionId')
     ..aOS(2, _omitFieldNames ? '' : 'outputData')
     ..aOB(3, _omitFieldNames ? '' : 'isPrompt')
+    ..aInt64(4, _omitFieldNames ? '' : 'timestamp')
+    ..aOS(5, _omitFieldNames ? '' : 'currentFolder')
     ..hasRequiredFields = false
   ;
 
@@ -167,6 +192,24 @@ class CommandResponse extends $pb.GeneratedMessage {
   $core.bool hasIsPrompt() => $_has(2);
   @$pb.TagNumber(3)
   void clearIsPrompt() => clearField(3);
+
+  @$pb.TagNumber(4)
+  $fixnum.Int64 get timestamp => $_getI64(3);
+  @$pb.TagNumber(4)
+  set timestamp($fixnum.Int64 v) { $_setInt64(3, v); }
+  @$pb.TagNumber(4)
+  $core.bool hasTimestamp() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearTimestamp() => clearField(4);
+
+  @$pb.TagNumber(5)
+  $core.String get currentFolder => $_getSZ(4);
+  @$pb.TagNumber(5)
+  set currentFolder($core.String v) { $_setString(4, v); }
+  @$pb.TagNumber(5)
+  $core.bool hasCurrentFolder() => $_has(4);
+  @$pb.TagNumber(5)
+  void clearCurrentFolder() => clearField(5);
 }
 
 

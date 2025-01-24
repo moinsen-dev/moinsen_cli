@@ -39,7 +39,6 @@ class MoinsenCliCommandRunner extends CompletionCommandRunner<int> {
       );
 
     // Add sub commands
-    addCommand(SampleCommand(logger: _logger));
     addCommand(UpdateCommand(logger: _logger, pubUpdater: _pubUpdater));
     addCommand(ServeCommand(logger: _logger));
   }

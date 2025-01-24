@@ -14,6 +14,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   final _formKey = GlobalKey<FormState>();
   final _serverController = TextEditingController();
   final _portController = TextEditingController();
+  final _secretKeyController = TextEditingController();
+  bool _obscureSecretKey = true;
 
   @override
   void initState() {
@@ -23,6 +25,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       if (settings != null) {
         _serverController.text = settings.serverName;
         _portController.text = settings.port.toString();
+        _secretKeyController.text = settings.secretKey ?? '';
       }
     });
   }
@@ -31,6 +34,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   void dispose() {
     _serverController.dispose();
     _portController.dispose();
+    _secretKeyController.dispose();
     super.dispose();
   }
 
@@ -39,6 +43,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       ref.read(settingsNotifierProvider.notifier).updateServerSettings(
             serverName: _serverController.text,
             port: int.parse(_portController.text),
+          );
+      ref.read(settingsNotifierProvider.notifier).updateSecretKey(
+            _secretKeyController.text.isEmpty
+                ? null
+                : _secretKeyController.text,
           );
       Navigator.pop(context);
     }
@@ -131,9 +140,19 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               const SizedBox(height: 8),
               TextFormField(
                 controller: _serverController,
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   labelText: 'Server Name',
                   hintText: 'localhost',
+                  suffixIcon: _serverController.text.isNotEmpty
+                      ? IconButton(
+                          icon: const Icon(Icons.clear),
+                          onPressed: () {
+                            setState(() {
+                              _serverController.clear();
+                            });
+                          },
+                        )
+                      : null,
                 ),
                 validator: (value) {
                   if (value == null || value.isEmpty) {
@@ -145,9 +164,19 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               const SizedBox(height: 16),
               TextFormField(
                 controller: _portController,
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   labelText: 'Port',
                   hintText: '50051',
+                  suffixIcon: _portController.text.isNotEmpty
+                      ? IconButton(
+                          icon: const Icon(Icons.clear),
+                          onPressed: () {
+                            setState(() {
+                              _portController.clear();
+                            });
+                          },
+                        )
+                      : null,
                 ),
                 keyboardType: TextInputType.number,
                 validator: (value) {
@@ -160,6 +189,41 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   }
                   return null;
                 },
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _secretKeyController,
+                decoration: InputDecoration(
+                  labelText: 'Secret Key',
+                  hintText: 'Optional',
+                  suffixIcon: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        icon: Icon(
+                          _obscureSecretKey
+                              ? Icons.visibility_off
+                              : Icons.visibility,
+                        ),
+                        onPressed: () {
+                          setState(() {
+                            _obscureSecretKey = !_obscureSecretKey;
+                          });
+                        },
+                      ),
+                      if (_secretKeyController.text.isNotEmpty)
+                        IconButton(
+                          icon: const Icon(Icons.clear),
+                          onPressed: () {
+                            setState(() {
+                              _secretKeyController.clear();
+                            });
+                          },
+                        ),
+                    ],
+                  ),
+                ),
+                obscureText: _obscureSecretKey,
               ),
             ],
           ),

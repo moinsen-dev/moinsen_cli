@@ -10,6 +10,7 @@ environment:
 dependencies:
   args: ^2.5.0
   cli_completion: ^0.5.1
+  fixnum: ^1.1.1
   grpc: ^4.0.1
   interact_cli: ^2.4.0
   mason_logger: ^0.3.0
@@ -27,4 +28,13 @@ dev_dependencies:
 
 executables:
   moinsen: bin/moinsen.dart
+
+builders:
+  protoc_plugin:
+    target: ":protoc_plugin"
+    import: "package:protoc_plugin/protoc_plugin.dart"
+    builder_factories: ["generateProto"]
+    build_extensions: {".proto": [".pb.dart", ".pbenum.dart", ".pbgrpc.dart", ".pbjson.dart"]}
+    auto_apply: dependents
+    build_to: source
 

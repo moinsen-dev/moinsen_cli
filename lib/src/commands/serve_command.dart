@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:math';
 
 import 'package:args/command_runner.dart';
 import 'package:grpc/grpc.dart';
@@ -17,12 +18,22 @@ class ServeCommand extends Command<int> {
   ServeCommand({
     required Logger logger,
   }) : _logger = logger {
-    argParser.addOption(
-      'port',
-      abbr: 'p',
-      help: 'Port to listen on',
-      defaultsTo: '50051',
-    );
+    argParser
+      ..addOption(
+        'port',
+        abbr: 'p',
+        help: 'Port to listen on',
+        defaultsTo: '50051',
+      )
+      ..addFlag(
+        'secret',
+        help: 'Enable secure server access with an auto-generated secret key',
+        negatable: false,
+      )
+      ..addOption(
+        'secret-key',
+        help: 'Provide a specific secret key for server access',
+      );
   }
 
   final Logger _logger;
@@ -36,12 +47,38 @@ class ServeCommand extends Command<int> {
   @override
   Future<int> run() async {
     final port = int.parse(argResults?['port'] as String);
+    final useSecret = argResults?['secret'] as bool;
+    var secretKey = argResults?['secret-key'] as String?;
+
+    if (useSecret || secretKey != null) {
+      if (secretKey == null) {
+        // Generate a random secret
+        // if --secret is provided without a specific key
+        const chars =
+            'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+        final random = Random.secure();
+        secretKey = List.generate(
+          32,
+          (index) => chars[random.nextInt(chars.length)],
+        ).join();
+        _logger.info('Generated secret: $secretKey');
+      }
+    } else {
+      _logger
+        ..warn(
+          'Warning: Server running without secret key. This is not secure!',
+        )
+        ..info(
+          'Use --secret to generate a secure key or --secret-key to provide '
+          'your own.',
+        );
+    }
 
     _logger.info('Starting server on port $port...');
 
     final server = Server.create(
       services: [
-        CommandServiceImpl(),
+        CommandServiceImpl(secret: secretKey),
       ],
     );
 
