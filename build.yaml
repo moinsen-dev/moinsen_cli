@@ -1,0 +1,6 @@
+targets:
+  $default:
+    builders:
+      protoc_plugin:
+        generate_for:
+          - protos/command.proto

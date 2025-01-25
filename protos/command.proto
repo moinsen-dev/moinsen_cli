@@ -1,0 +1,22 @@
+syntax = "proto3";
+
+package command;
+
+service CommandService {
+  rpc StreamCommand (stream CommandRequest) returns (stream CommandResponse);
+}
+
+message CommandRequest {
+  string session_id = 1;
+  string input_data = 2;
+  bool is_interactive_answer = 3;
+   int64 timestamp = 4;  // Unix timestamp in milliseconds
+}
+
+message CommandResponse {
+  string session_id = 1;
+  string output_data = 2;
+  bool is_prompt = 3;
+  int64 timestamp = 4;  // Unix timestamp in milliseconds
+  string current_folder = 5;  // Current working directory
+}
