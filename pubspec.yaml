@@ -14,7 +14,7 @@ dependencies:
   grpc: ^4.0.1
   interact_cli: ^2.4.0
   mason_logger: ^0.3.2
-  path: ^1.9.1
+  path: 1.9.0
   protobuf: ^3.1.0
   pub_updater: ^0.5.0
 
@@ -38,6 +38,3 @@ builders:
     build_extensions: {".proto": [".pb.dart", ".pbenum.dart", ".pbgrpc.dart", ".pbjson.dart"]}
     auto_apply: dependents
     build_to: source
-
-assets:
-  - assets/
