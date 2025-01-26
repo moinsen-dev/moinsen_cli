@@ -5,7 +5,7 @@ import 'dart:math';
 import 'package:args/command_runner.dart';
 import 'package:grpc/grpc.dart';
 import 'package:mason_logger/mason_logger.dart';
-import 'package:moinsen_cli/src/services/command_service_impl.dart';
+import 'package:moinsen_cli/src/services/command/command_service_impl.dart';
 
 /// {@template serve_command}
 /// A command that starts the gRPC server
@@ -113,7 +113,6 @@ class ServeCommand extends Command<int> {
       services: [
         CommandServiceImpl(
           secret: secretKey,
-          logFile: enableLogging ? _logFile : null,
         ),
       ],
     );

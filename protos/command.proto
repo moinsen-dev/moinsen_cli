@@ -2,21 +2,109 @@ syntax = "proto3";
 
 package command;
 
+// CommandService provides bidirectional streaming for executing various file system
+// and shell commands between client and server.
 service CommandService {
+  // StreamCommand establishes a bidirectional stream for sending commands and
+  // receiving their responses. This allows for interactive command execution
+  // and real-time feedback.
   rpc StreamCommand (stream CommandRequest) returns (stream CommandResponse);
 }
 
-message CommandRequest {
-  string session_id = 1;
-  string input_data = 2;
-  bool is_interactive_answer = 3;
-   int64 timestamp = 4;  // Unix timestamp in milliseconds
+// CommandType defines all available command operations that can be performed
+// through the service.
+enum CommandType {
+  // Default value when type is not specified
+  COMMAND_TYPE_UNSPECIFIED = 0;
+  // Execute a shell command
+  COMMAND = 1;
+  // Initialize current directory as root directory
+  INIT = 2;
+  // List files in current directory
+  LIST = 3;
+  // Change current working directory
+  CD = 4;
+  // Exit the current session
+  EXIT = 5;
+  // Read contents of a file
+  READ_FILE = 6;
+  // Write content to a file
+  WRITE_FILE = 7;
+  // Delete an existing file
+  DELETE_FILE = 8;
+  // Create a new file
+  CREATE_FILE = 9;
+  // Create a new directory
+  CREATE_DIR = 10;
+  // Delete an existing directory
+  DELETE_DIR = 11;
+  // Search for files or directories
+  SEARCH = 12;
 }
 
-message CommandResponse {
+// CommandRequest represents a command to be executed by the server.
+// It contains all necessary information to process any supported command type.
+message CommandRequest {
+  // Unique identifier for the client session
   string session_id = 1;
+  // Raw command input or additional data
+  string input_data = 2;
+  // Indicates if this is a response to a prompt
+  bool is_interactive_answer = 3;
+  // Request timestamp in milliseconds since epoch
+  int64 timestamp = 4;
+  // Type of command to execute
+  CommandType command_type = 5;
+  // Determines if command output should be streamed line by line
+  bool streaming_mode = 6;
+
+  // Command-specific fields
+  // Target path for file/directory operations
+  string path = 7;
+  // Content for write/create operations
+  string content = 8;
+  // Query string for search operations
+  string search_query = 9;
+}
+
+// CommandResponse represents the server's response to a command request.
+// It includes the command result and any relevant metadata.
+message CommandResponse {
+  // Session ID matching the request
+  string session_id = 1;
+  // Command output or response data
   string output_data = 2;
+  // Indicates if this response requires user input
   bool is_prompt = 3;
-  int64 timestamp = 4;  // Unix timestamp in milliseconds
-  string current_folder = 5;  // Current working directory
+  // Response timestamp in milliseconds since epoch
+  int64 timestamp = 4;
+  // Current working directory after command execution
+  string current_folder = 5;
+  // Echo of the command type being processed
+  CommandType command_type = 6;
+  // Indicates if this is a partial response (for streaming mode)
+  bool is_partial = 7;
+  // Indicates if this is the final response in a stream
+  bool is_complete = 8;
+
+  // Response-specific fields
+  // Indicates if the command was successful
+  bool success = 9;
+  // Error description if command failed
+  string error_message = 10;
+  // List of files/directories for LIST command
+  repeated FileInfo file_list = 11;
+}
+
+// FileInfo contains metadata about a file or directory.
+// Used primarily in LIST command responses.
+message FileInfo {
+  // Name of the file or directory
+  string name = 1;
+  // True if entry is a directory
+  bool is_directory = 2;
+  // Size in bytes (0 for directories)
+  int64 size = 3;
+  // Last modified time in milliseconds since epoch
+  int64 modified_time = 4;
 }
