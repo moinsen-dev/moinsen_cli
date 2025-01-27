@@ -1,7 +1,7 @@
 # Running Aider in Non-Terminal Environment
 
 ## Problem Statement
-When running Aider through the Moinsen CLI remote control system, we encounter the error:
+When running Aider through the Moinsen remote control system, we encounter the error:
 ```
 [ERR] Warning: Input is not a terminal (fd=0)
 ```

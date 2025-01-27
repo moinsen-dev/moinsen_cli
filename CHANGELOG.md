@@ -43,7 +43,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.0.1] - 2024-12-25
 
 ### Added
-- Initial release of the Moinsen CLI tool
+- Initial release of the Moinsen tool
 - Basic command runner setup
 - Test infrastructure
 
