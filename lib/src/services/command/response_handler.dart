@@ -1,10 +1,17 @@
 import 'dart:async';
 
 import 'package:fixnum/fixnum.dart' show Int64;
+import 'package:mason_logger/mason_logger.dart';
 import 'package:moinsen_cli/src/generated/command.pb.dart';
+import 'package:moinsen_cli/src/services/cli_logging_service.dart';
 
 /// Handles the streaming of command responses.
 class ResponseHandler {
+  /// Creates a new instance of [ResponseHandler].
+  ResponseHandler({required CliLoggingService logger}) : _logger = logger;
+
+  final CliLoggingService _logger;
+
   /// Stream controller for command responses.
   StreamController<CommandResponse>? _controller;
 
@@ -74,6 +81,28 @@ class ResponseHandler {
     );
 
     _controller!.add(response);
+  }
+
+  /// Adds a command response directly to the stream.
+  void addCommandResponse(CommandResponse response) {
+    if (_controller == null || _controller!.isClosed) {
+      _logger.log(
+        Level.error,
+        'Response handler is not initialized or is closed',
+      );
+      return;
+    }
+
+    response.timestamp = Int64(DateTime.now().millisecondsSinceEpoch);
+    response.isComplete = true;
+    _controller!.add(response);
+
+    _logger.log(
+      Level.verbose,
+      'Sent response: ${response.commandType}, success: ${response.success}, '
+      'output length: ${response.outputData.length}, '
+      'files: ${response.fileList.length}',
+    );
   }
 
   /// Disposes of the response handler.

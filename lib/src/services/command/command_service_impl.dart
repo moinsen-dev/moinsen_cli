@@ -25,9 +25,12 @@ class CommandServiceImpl extends pbgrpc.CommandServiceBase {
   ///
   /// The [logger] parameter is optional and defaults to a new [CliLoggingService] instance
   /// if not provided.
+  ///
+  /// The [onExit] parameter is optional and can be used to execute a callback when an exit command is received.
   CommandServiceImpl({
     this.secret,
     Logger? logger,
+    this.onExit,
   }) : _logger = CliLoggingService(
           logDir: path.join(
             Directory.systemTemp.path,
@@ -39,6 +42,9 @@ class CommandServiceImpl extends pbgrpc.CommandServiceBase {
 
   /// Optional secret key for authentication.
   final String? secret;
+
+  /// Callback to execute when an exit command is received
+  final void Function()? onExit;
 
   /// Logger instance for service-wide logging.
   final CliLoggingService _logger;
@@ -59,12 +65,13 @@ class CommandServiceImpl extends pbgrpc.CommandServiceBase {
       sessionId: sessionId,
     );
 
-    final responseHandler = ResponseHandler();
+    final responseHandler = ResponseHandler(logger: _logger);
     responseHandler.initialize();
 
     final processManager = ProcessManager(
       logger: _logger,
       responseHandler: responseHandler,
+      commandService: this,
     );
 
     try {
@@ -99,8 +106,13 @@ class CommandServiceImpl extends pbgrpc.CommandServiceBase {
 
       // Process requests in a separate async operation
       unawaited(
-        _processRequests(request, sessionId, processManager, _logger)
-            .whenComplete(() {
+        _processRequests(
+          request,
+          sessionId,
+          processManager,
+          _logger,
+          responseHandler,
+        ).whenComplete(() {
           _logger.log(
             Level.info,
             'Request stream completed',
@@ -151,6 +163,7 @@ Future<void> _processRequests(
   String sessionId,
   ProcessManager processManager,
   CliLoggingService logger,
+  ResponseHandler responseHandler,
 ) async {
   try {
     await for (final request in requests) {
@@ -183,11 +196,24 @@ Future<void> _processRequests(
         continue;
       }
 
+      if (commandType == CommandType.EXIT) {
+        logger.log(
+          Level.info,
+          'Exit command received',
+          sessionId: sessionId,
+        );
+        processManager.terminateCurrentProcess(sessionId);
+        await responseHandler.dispose();
+        processManager.commandService.onExit?.call();
+        continue;
+      }
+
       try {
         final handler = CommandHandlerFactory.getHandler(commandType);
         await handler.execute(
           sessionId: sessionId,
           input: input,
+          request: request,
           processManager: processManager,
           logger: logger,
         );
@@ -200,6 +226,19 @@ Future<void> _processRequests(
       }
     }
   } catch (e) {
+    if (e is $grpc.GrpcError && e.code == $grpc.StatusCode.cancelled) {
+      logger.log(
+        Level.info,
+        'Client disconnected during request processing',
+        sessionId: sessionId,
+      );
+      // Clean up resources
+      processManager.terminateCurrentProcess(sessionId);
+      await responseHandler.dispose();
+      // Trigger server restart
+      processManager.commandService.onExit?.call();
+      return;
+    }
     logger.log(
       Level.error,
       'Error in request stream: $e',

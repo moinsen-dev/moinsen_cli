@@ -12,11 +12,11 @@ class CdCommandHandler implements CommandHandler {
   Future<void> execute({
     required String sessionId,
     required String input,
+    required CommandRequest request,
     required ProcessManager processManager,
     required CliLoggingService logger,
   }) async {
     try {
-      final request = CommandRequest.fromJson(input);
       final targetPath = request.path;
 
       if (targetPath.isEmpty) {

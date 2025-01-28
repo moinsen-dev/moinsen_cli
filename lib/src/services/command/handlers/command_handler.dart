@@ -1,3 +1,4 @@
+import 'package:moinsen_cli/src/generated/command.pb.dart';
 import 'package:moinsen_cli/src/services/cli_logging_service.dart';
 import 'package:moinsen_cli/src/services/command/process_manager.dart';
 
@@ -7,6 +8,7 @@ abstract class CommandHandler {
   Future<void> execute({
     required String sessionId,
     required String input,
+    required CommandRequest request,
     required ProcessManager processManager,
     required CliLoggingService logger,
   });

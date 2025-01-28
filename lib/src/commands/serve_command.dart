@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
@@ -109,47 +110,77 @@ class ServeCommand extends Command<int> {
 
     _logger.info('Starting server on port $port...');
 
-    final server = Server.create(
-      services: [
-        CommandServiceImpl(
-          secret: secretKey,
-        ),
-      ],
-    );
+    while (true) {
+      final shutdownCompleter = Completer<void>();
+      final server = Server.create(
+        services: [
+          CommandServiceImpl(
+            secret: secretKey,
+            onExit: () {
+              if (_logFile != null) {
+                _logCommand({
+                  'event': 'server_shutdown',
+                  'reason': 'exit_command',
+                });
+              }
+              shutdownCompleter.complete();
+              exit(ExitCode.success.code);
+            },
+          ),
+        ],
+      );
 
-    try {
-      await server.serve(port: port);
-      _logger.success('Server listening on port ${server.port}');
+      try {
+        await server.serve(port: port);
+        _logger.success('Server listening on port ${server.port}');
 
-      if (_logFile != null) {
-        _logCommand({
-          'event': 'server_running',
-          'port': server.port,
-        });
+        if (_logFile != null) {
+          _logCommand({
+            'event': 'server_running',
+            'port': server.port,
+          });
+        }
+
+        // Wait for either SIGINT or explicit shutdown
+        await Future.any([
+          ProcessSignal.sigint.watch().first,
+          shutdownCompleter.future,
+        ]);
+
+        if (_logFile != null) {
+          _logCommand({
+            'event': 'server_interrupt',
+            'reason': 'sigint',
+          });
+        }
+
+        await server.shutdown();
+        _logger.info('Server shutdown. Restarting in 5 seconds...');
+        await Future<void>.delayed(const Duration(seconds: 5));
+      } catch (e) {
+        if (e is GrpcError && e.code == StatusCode.cancelled) {
+          _logger.info('Client disconnected. Restarting server...');
+          if (_logFile != null) {
+            _logCommand({
+              'event': 'client_disconnected',
+              'reason': 'cancelled',
+            });
+          }
+          await server.shutdown();
+          continue;
+        }
+
+        if (_logFile != null) {
+          _logCommand({
+            'event': 'server_error',
+            'error': e.toString(),
+          });
+        }
+
+        _logger.err('Server error: $e');
+        _logger.info('Restarting server in 5 seconds...');
+        await Future<void>.delayed(const Duration(seconds: 5));
       }
-
-      // Keep the command running
-      await ProcessSignal.sigint.watch().first;
-
-      if (_logFile != null) {
-        _logCommand({
-          'event': 'server_shutdown',
-          'reason': 'sigint',
-        });
-      }
-
-      await server.shutdown();
-      return ExitCode.success.code;
-    } catch (e) {
-      if (_logFile != null) {
-        _logCommand({
-          'event': 'server_error',
-          'error': e.toString(),
-        });
-      }
-
-      _logger.err('Failed to start server: $e');
-      return ExitCode.software.code;
     }
   }
 }

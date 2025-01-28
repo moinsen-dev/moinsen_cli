@@ -10,37 +10,22 @@ class ShellCommandHandler implements CommandHandler {
   Future<void> execute({
     required String sessionId,
     required String input,
+    required CommandRequest request,
     required ProcessManager processManager,
     required CliLoggingService logger,
   }) async {
     logger.log(
       Level.info,
-      'Executing shell command: $input',
+      'Executing shell command: ${request.inputData}',
       sessionId: sessionId,
     );
 
-    var streamingMode = false;
-    var commandInput = input;
-
-    try {
-      // Try to parse as JSON first
-      final request = CommandRequest.fromJson(input);
-      streamingMode = request.streamingMode;
-      commandInput = request.inputData;
-    } catch (e) {
-      // If parsing fails, treat input as raw command string
-      logger.log(
-        Level.verbose,
-        'Using raw command input',
-        sessionId: sessionId,
-      );
-    }
-
     processManager.terminateCurrentProcess(sessionId);
     await processManager.executeCommand(
-      sessionId,
-      commandInput,
-      streamingMode: streamingMode,
+      sessionId: sessionId,
+      input: input,
+      request: request,
+      streamingMode: request.streamingMode,
     );
   }
 }
