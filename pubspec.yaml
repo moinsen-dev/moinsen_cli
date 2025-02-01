@@ -28,7 +28,7 @@ dev_dependencies:
   very_good_analysis: ^7.0.0
 
 executables:
-  moinsen: bin/moinsen.dart
+  moinsen: moinsen
 
 builders:
   protoc_plugin:
