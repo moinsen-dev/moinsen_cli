@@ -19,15 +19,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Enhanced server security options with `--secret` and `--secret-key` flags
 - Improved server shutdown handling with SIGINT signal
 
-### Deprecated
-
-### Removed
-
 ### Fixed
 
 ### Security
 
-## [0.1.0] - 2025-01-24
+## [0.3.0] - 2024-01-24
 
 ### Added
 - gRPC command service with bidirectional streaming
@@ -40,7 +36,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 - Sample command (replaced with actual functionality)
 
-## [0.0.1] - 2024-12-25
+## [0.0.1] - 2023-12-25
 
 ### Added
 - Initial release of the Moinsen tool
